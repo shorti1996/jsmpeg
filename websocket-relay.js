@@ -5,8 +5,13 @@
 // ffmpeg -i <some input> -f mpegts http://localhost:8081/yoursecret
 
 var fs = require('fs'),
-	http = require('http'),
+	https = require('https'),
 	WebSocket = require('ws');
+
+const options = {
+  key: fs.readFileSync('certs/key.pem'),
+  cert: fs.readFileSync('certs/cert.pem')
+};
 
 if (process.argv.length < 3) {
 	console.log(
@@ -27,7 +32,7 @@ socketServer.connectionCount = 0;
 socketServer.on('connection', function(socket, upgradeReq) {
 	socketServer.connectionCount++;
 	console.log(
-		'New WebSocket Connection: ', 
+		'New WebSocket Connection: ',
 		(upgradeReq || socket.upgradeReq).socket.remoteAddress,
 		(upgradeReq || socket.upgradeReq).headers['user-agent'],
 		'('+socketServer.connectionCount+' total)'
@@ -48,7 +53,7 @@ socketServer.broadcast = function(data) {
 };
 
 // HTTP Server to accept incomming MPEG-TS Stream from ffmpeg
-var streamServer = http.createServer( function(request, response) {
+var streamServer = https.createServer(options, function(request, response) {
 	var params = request.url.substr(1).split('/');
 
 	if (params[0] !== STREAM_SECRET) {
