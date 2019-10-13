@@ -5,6 +5,7 @@
 // ffmpeg -i <some input> -f mpegts http://localhost:8081/yoursecret
 
 var fs = require('fs'),
+    http = require('http'),
     https = require('https'),
     WebSocket = require('ws');
 
@@ -24,13 +25,8 @@ if (process.argv.length < 3) {
 var STREAM_SECRET = process.argv[2],
     STREAM_PORT = process.argv[3] || 8081,
     WEBSOCKET_PORT = process.argv[4] || 8082,
+    // WEBSOCKET_HTTPS_PORT = process.argv[4] || 8083,
     RECORD_STREAM = false;
-
-var ws_options = {
-    port: WEBSOCKET_PORT,
-    perMessageDeflate: false,
-    protocol: "protocol1"
-};
 
 function toEvent(message) {
     try {
@@ -41,50 +37,46 @@ function toEvent(message) {
     }
 }
 
+// Websocket https
+const socketServerHttps = https.createServer(options);
+socketServerHttps.listen(WEBSOCKET_PORT);
+
+var ws_options = {
+    noServer: true,
+    perMessageDeflate: false,
+    protocol: "protocol1",
+    server: socketServerHttps
+};
+
+function validate(data) {
+    // let user = "user";
+    // let pass = "pass";
+    let user = "shorti1996";
+    let pass = "dupacycki";
+    return (data.login && data.login === user) && (data.password && data.password === pass)
+}
+
 // Websocket Server
 var socketServer = new WebSocket.Server(ws_options);
 socketServer.connectionCount = 0;
 var authenticatedClients = [];
+var socketsPurgatory = [];
 socketServer.on('connection', function (socket, upgradeReq, client) {
     socket.on('message', toEvent).on('authenticate', function (data) {
         console.log(`Received message ${JSON.stringify(data)} from user ${client}`);
-        authenticatedClients.push(socket);
+        if (validate(data)) {
+            console.log("client authenticated");
+            socketsPurgatory = socketsPurgatory.filter(({timestamp, sock}) => sock !== socket);
+            authenticatedClients.push(socket);
+        } else {
+            console.log("unable to authenticate the client");
+            socket.close();
+        }
         socketServer.broadcast(JSON.stringify({type: "lol", payload: {}}));
-        // if (msg.type === "authenticate") {
-        //     console.log("wants auth");
-        // }
-    });
-
-    // socketServer.on('upgrade', function upgrade(request, socket, head) {
-    //     console.log(`auth`);
-    //     authenticate(request, (err, client) => {
-    //         console.log(`auth`);
-    //         if (err || !client) {
-    //             socket.destroy();
-    //             return;
-    //         }
-    //
-    //         socketServer.handleUpgrade(request, socket, head, function done(ws) {
-    //             ws.emit('connection', ws, request, client);
-    //         });
-    //     });
-    // });
-
-    socketServer.on('upgrade', function upgrade(request, socket, head) {
-		console.log("upgrade");
-        authenticate(request, (err, client) => {
-            if (err || !client) {
-                socket.destroy();
-                return;
-            }
-
-            wss.handleUpgrade(request, socket, head, function done(ws) {
-                wss.emit('connection', ws, request, client);
-            });
-        });
     });
 
     socketServer.connectionCount++;
+    socketsPurgatory.push({timestamp: Date.now(), sock: socket});
     console.log(
         'New WebSocket Connection: ',
         (upgradeReq || socket.upgradeReq).socket.remoteAddress,
@@ -92,6 +84,7 @@ socketServer.on('connection', function (socket, upgradeReq, client) {
         '(' + socketServer.connectionCount + ' total)'
     );
     socket.on('close', function (code, message) {
+        authenticatedClients = authenticatedClients.filter((sock) => sock !== socket);
         socketServer.connectionCount--;
         console.log(
             'Disconnected WebSocket (' + socketServer.connectionCount + ' total)'
@@ -99,7 +92,10 @@ socketServer.on('connection', function (socket, upgradeReq, client) {
     });
 });
 socketServer.broadcast = function (data) {
+    // console.log("broadcast");
+    // socketServer.clients.forEach(function each(client) {
     authenticatedClients.forEach(function each(client) {
+        // console.log("broadcast for client");
         if (client.readyState === WebSocket.OPEN) {
             client.send(data);
         }
@@ -107,7 +103,7 @@ socketServer.broadcast = function (data) {
 };
 
 // HTTP Server to accept incomming MPEG-TS Stream from ffmpeg
-var streamServer = https.createServer(options, function (request, response) {
+var streamServer = http.createServer(function (request, response) {
     var params = request.url.substr(1).split('/');
 
     if (params[0] !== STREAM_SECRET) {
@@ -146,5 +142,24 @@ var streamServer = https.createServer(options, function (request, response) {
 
 console.log('Listening for incomming MPEG-TS Stream on http://127.0.0.1:' + STREAM_PORT + '/<secret>');
 console.log('Awaiting WebSocket connections on ws://127.0.0.1:' + WEBSOCKET_PORT + '/');
+
+var watchdogUnauthenticated = () => new Promise((completed, timeouted) => {
+    let purgatoryCooldownMs = 5000;
+    let check = () => {
+        // console.log("checking if any websockets should be closed");
+        let now = Date.now();
+        let toClose = socketsPurgatory.filter(({timestamp, sock}) => (now - timestamp) > purgatoryCooldownMs);
+        toClose.forEach(({timestamp, sock}) => {
+            console.log("disconnecting client that is unauthenticated for too long (" + (now - timestamp) + "ms)");
+            sock.close();
+        });
+        socketsPurgatory = socketsPurgatory.filter((el) => !toClose.includes(el));
+        setTimeout(check, 60000);
+    };
+    check();
+});
+(async () => {
+    await watchdogUnauthenticated();
+})();
 
 socketServer.broadcast({type: "lol", payload: {}});
