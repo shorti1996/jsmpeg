@@ -71,6 +71,7 @@ socketServer.on('connection', function (socket, upgradeReq, client) {
     // });
 
     socketServer.on('upgrade', function upgrade(request, socket, head) {
+		console.log("upgrade");
         authenticate(request, (err, client) => {
             if (err || !client) {
                 socket.destroy();
