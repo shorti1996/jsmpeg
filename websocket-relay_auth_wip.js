@@ -61,6 +61,9 @@ var socketServer = new WebSocket.Server(ws_options);
 socketServer.connectionCount = 0;
 var authenticatedClients = [];
 var socketsPurgatory = [];
+logAuthenticatedClientsCount = function () {
+    console.log("Authenticated clients: " + authenticatedClients.length);
+};
 socketServer.on('connection', function (socket, upgradeReq, client) {
     socket.on('message', toEvent).on('authenticate', function (data) {
         console.log(`Received message ${JSON.stringify(data)} from user ${client}`);
@@ -68,6 +71,7 @@ socketServer.on('connection', function (socket, upgradeReq, client) {
             console.log("client authenticated");
             socketsPurgatory = socketsPurgatory.filter(({timestamp, sock}) => sock !== socket);
             authenticatedClients.push(socket);
+            logAuthenticatedClientsCount();
         } else {
             console.log("unable to authenticate the client");
             socket.close();
@@ -89,6 +93,7 @@ socketServer.on('connection', function (socket, upgradeReq, client) {
         console.log(
             'Disconnected WebSocket (' + socketServer.connectionCount + ' total)'
         );
+        logAuthenticatedClientsCount();
     });
 });
 socketServer.broadcast = function (data) {
