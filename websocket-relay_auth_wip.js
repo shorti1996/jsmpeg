@@ -48,12 +48,18 @@ var ws_options = {
     server: socketServerHttps
 };
 
+var users = [
+    {login: "shorti1996", password: "dupacycki"},
+    {login: "user", password: "pass"}
+];
 function validate(data) {
-    // let user = "user";
-    // let pass = "pass";
-    let user = "shorti1996";
-    let pass = "dupacycki";
-    return (data.login && data.login === user) && (data.password && data.password === pass)
+    if (data && data.login && data.password) {
+        let suspect = users.filter(({login, password}) => login === data.login);
+        if (suspect.length === 1) {
+            return data.password = suspect[0].password;
+        }
+    }
+    return false;
 }
 
 // Websocket Server
