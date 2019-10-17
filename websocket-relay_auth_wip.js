@@ -4,7 +4,8 @@
 // node websocket-relay yoursecret 8081 8082
 // ffmpeg -i <some input> -f mpegts http://localhost:8081/yoursecret
 
-var fs = require('fs'),
+var stupidpass = require('./stupidpass'),
+    fs = require('fs'),
     http = require('http'),
     https = require('https'),
     WebSocket = require('ws');
@@ -48,10 +49,7 @@ var ws_options = {
     server: socketServerHttps
 };
 
-var users = [
-    {login: "shorti1996", password: "dupacycki"},
-    {login: "user", password: "pass"}
-];
+let users = stupidpass.users();
 function validate(data) {
     if (data && data.login && data.password) {
         let suspect = users.filter(({login, password}) => login === data.login);
@@ -149,7 +147,7 @@ var streamServer = http.createServer(function (request, response) {
         var path = 'recordings/' + Date.now() + '.ts';
         request.socket.recording = fs.createWriteStream(path);
     }
-}).listen(STREAM_PORT);
+}).listen(STREAM_PORT, '127.0.0.1');
 
 console.log('Listening for incomming MPEG-TS Stream on http://127.0.0.1:' + STREAM_PORT + '/<secret>');
 console.log('Awaiting WebSocket connections on ws://127.0.0.1:' + WEBSOCKET_PORT + '/');
