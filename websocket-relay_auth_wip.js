@@ -54,7 +54,7 @@ function validate(data) {
     if (data && data.login && data.password) {
         let suspect = users.filter(({login, password}) => login === data.login);
         if (suspect.length === 1) {
-            return data.password = suspect[0].password;
+            return data.password === suspect[0].password;
         }
     }
     return false;
