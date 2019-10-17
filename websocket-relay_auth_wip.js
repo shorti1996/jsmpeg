@@ -11,8 +11,8 @@ var stupidpass = require('./stupidpass'),
     WebSocket = require('ws');
 
 const options = {
-    key: fs.readFileSync('certs/key.pem'),
-    cert: fs.readFileSync('certs/cert.pem')
+    key: fs.readFileSync('/home/pi/cctv-python/certs/server.key'),
+    cert: fs.readFileSync('/home/pi/cctv-python/certs/server.cert')
 };
 
 if (process.argv.length < 3) {
