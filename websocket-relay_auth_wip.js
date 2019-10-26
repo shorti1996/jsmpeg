@@ -70,7 +70,7 @@ logAuthenticatedClientsCount = function () {
 };
 socketServer.on('connection', function (socket, upgradeReq, client) {
     socket.on('message', toEvent).on('authenticate', function (data) {
-        console.log(`Received message ${JSON.stringify(data)} from user ${client}`);
+        console.log(`Received auth request ${JSON.stringify(data)}`);
         if (validate(data)) {
             console.log("client authenticated");
             socketsPurgatory = socketsPurgatory.filter(({timestamp, sock}) => sock !== socket);
