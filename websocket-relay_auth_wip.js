@@ -10,11 +10,6 @@ var stupidpass = require('./stupidpass'),
     https = require('https'),
     WebSocket = require('ws');
 
-const options = {
-    key: fs.readFileSync('/home/pi/cctv-python/certs/server.key'),
-    cert: fs.readFileSync('/home/pi/cctv-python/certs/server.cert')
-};
-
 if (process.argv.length < 3) {
     console.log(
         'Usage: \n' +
@@ -27,7 +22,14 @@ var STREAM_SECRET = process.argv[2],
     STREAM_PORT = process.argv[3] || 8081,
     WEBSOCKET_PORT = process.argv[4] || 8082,
     // WEBSOCKET_HTTPS_PORT = process.argv[4] || 8083,
+    KEY_PATH = process.argv[5] || '/home/pi/cctv-python/certs/server.key',
+    CERT_PATH = process.argv[6] || '/home/pi/cctv-python/certs/server.cert',
     RECORD_STREAM = false;
+
+const options = {
+    key: fs.readFileSync(KEY_PATH),
+    cert: fs.readFileSync(CERT_PATH)
+};
 
 function toEvent(message) {
     try {
